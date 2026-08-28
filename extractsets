@@ -1,0 +1,35 @@
+#!/bin/sh
+# extract openbsd and netbsd file sets
+
+set -eux
+
+p=$1
+
+if [ `whoami` != root ] ; then
+	echo please be root
+	exit
+fi
+
+echo we are in $PWD, are you sure?
+read sure
+
+if [ $sure != y ] && [ $sure != yes ] ; then
+	echo okay then, i dont see you very confident either
+	exit 1
+fi
+
+for set in $p/*.tgz ; do
+	tar xzphf $set
+	echo done $set
+done
+
+echo copying etc
+for etcset in ./var/sysmerge/*.tgz ; do
+	tar xzphf $etcset
+	echo done $etcset
+done
+
+cd dev
+./MAKEDEV all
+cd ..
+echo `basename $PWD` >> etc/myname

@@ -1,0 +1,124 @@
+#!/bin/sh
+# get and extract rootfs for various operating systems for chroot or diskless setups
+
+set -eu
+
+# these values will be set by commandline arguments
+# but we set them to empty just in case.
+ARCHS=
+GET="ftp -VC"
+OS=
+VER=
+SHA="sha512"
+
+# print a usage of this program with a optional error message
+usage() {
+	if [ $# -ne 0 ] ; then
+		echo ">> $1" 2>&1
+	fi
+
+	echo "Usage: getsets -o os -a arch -v version [-g getprog]
+supported OSes and arches:
+	netbsd/amd64, netbsd/aarch64, netbsd/earmv6hf, netbsd/earmv7hf.
+	openbsd/amd64, openbsd/armv7, openbsd/arm64.
+
+getprog is a http(s) downloader  with optional arugments
+default value is \"$GET\", it must understand -o as output file name. (curl and wget do
+
+Examples:
+	getsets -o openbsd -v snapshots -a amd64
+	getsets -o netbsd -v 11.0 -a earmv7hf
+	NetBSD: 11.0, current.
+	OpenBSD: 8.0, current." 2>&1
+
+	exit 2
+}	
+
+openbsd(){
+	URL=https://cdn.openbsd.org/pub/OpenBSD/${VER}/${ARCH}
+	
+	if [ ${VER} == "current" ] ; then
+		usage "use snapshots instead of current"
+	elif [ ${VER} == "snapshots" ] ; then
+		# snapshots are in the format of setXY.tgz,
+		# with XY being the version specfier.
+		# for example if we are near 8.0's release time XY would be 80.
+		# there is no way to know what XY we are in other than asking the user
+		# or checking the list of files.
+		REV=`$GET -o /dev/stdout $URL/index.txt | grep -oE 'comp([0-9])+\.tgz$' | grep -oE '([0-9])+'`
+	else
+		REV=`echo ${VER} | sed s/\.//g`
+	fi
+	
+	common="base$REV.tgz comp$REV.tgz game$REV.tgz man$REV.tgz xbase$REV.tgz xfont$REV.tgz xshare$REV.tgz xserv$REV.tgz bsd bsd.rd SHA256 index.txt BUILDINFO SHA256.sig"
+	amd64="$common miniroot$REV.img cd$REV.iso bsd.mp pxeboot BOOTIA32.EFI BOOTX64.EFI"
+	arm64="$common miniroot$REV.img bsd.mp BOOTAA64.EFI"
+	armv7="$common BOOTARM.EFI"
+}
+
+netbsd() {
+	URL=https://cdn.netbsd.org/pub/NetBSD/NetBSD-${VER}
+	
+	if `echo $ARCH | grep -q arm` ; then
+	    # shells don't support hypen in variable names,
+	    # but arm archs in netbsd have hypens in their names.
+	    # quite a nasty workaround
+	    URL=${URL}/evbarm-${ARCH}/binary/sets
+	else
+	    URL=${URL}/$ARCH/binary/sets
+	fi
+
+	common="SHA512 MD5 base.tgz comp.tgz debug.tgz etc.tgz games.tgz gpufw.tgz man.tgz manhtml.tgz misc.tgz modules.tgz rescue.tgz tests.tgz xbase.tgz xcomp.tgz xdebug.tgz xetc.tgz xfont.tgz xserver.tgz"
+	common64="SHA512 MD5 base.tar.xz comp.tar.xz debug.tar.xz etc.tar.xz games.tar.xz gpufw.tar.xz man.tar.xz manhtml.tar.xz misc.tar.xz modules.tar.xz rescue.tar.xz tests.tar.xz xbase.tar.xz xcomp.tar.xz xdebug.tar.xz xetc.tar.xz xfont.tar.xz xserver.tar.xz"
+	earmv6hf="$common dtb.tgz kern-RPI.tgz kern-RPI2.tgz"
+	earmv7hf="$common dtb.tgz kern-GENERIC.tgz"
+	aarch64="$common64 dtb.tar.xz kern-GENERIC.tar.xz kern-GENERIC64_PMAPMI.tar.xz"
+	amd64="$common64 base32.tar.xz debug32.tar.xz kern-GENERIC.tar.xz kern-GENERIC_KASLR.tar.xz kern-MICROVM.tar.xz kern-XEN3_DOM0.tar.xz kern-XEN3_DOMU.tar.xz"
+}
+
+run() {
+	$OS # run the os specfic fixups and file list generation
+	mkdir -p $OS/$ARCH/$VER
+	echo $VER >> $OS/$ARCH/$VER/version
+	files=$(eval echo "\$$ARCH")
+	for f in $files ; do
+		$GET -o $OS/$ARCH/$VER/$f $URL/$f
+	done
+}
+
+
+args=`getopt o:a:g:v: $*`
+if [ $? -ne 0 ] ; then
+	usage
+fi
+
+set -- $args
+while [ $# -ne 0 ] ; do
+	case "$1"
+	in
+		-a)
+			ARCH="$2"
+			shift; shift;;
+		-g)
+			GET="$2"
+			shift; shift;;
+		-o)
+			OS="$2"
+			shift; shift;;
+		-v)
+			VER="$2"
+			shift; shift;;
+		--)
+			shift ; break;;
+	esac
+done
+
+if [ -z ${OS} ] ; then
+	usage "no os is set"
+elif [ -z ${ARCH} ] ; then
+	usage "no arch is set"
+elif [ -z ${VER} ] ; then
+	usage "no version is set"
+fi
+
+run
