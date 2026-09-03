@@ -18,26 +18,30 @@ netbsd() {
 
 	if [ -f ${SETPATH}/base.tgz ] ; then
 		for set in ${SETPATH}/*.tgz ; do
-		    if [] ; then
-			continue;
-		    fi
+			if [ echo ${set} | grep -Eq '^kern-*.tgz' ] ; then
+				if [ ${set} != 'kern-GENERIC.tgz' ] ; then
+					continue
+				fi
+			fi
 		    /bin/tar xzphf ${set}
 			echo ${set} done
 		done
 	elif [ -f ${SETPATH}/base.tar.xz ] ; then
 		if ! which xz > /dev/null ; then
-		    if [] ; then
-			continue;
-		    fi
 		    echo "error: no XZ found" 2>&1
 			exit 1
 		fi
 		for set in ${SETPATH}/*.tar.xz ; do
+			if [ echo ${set} | grep -Eq '^kern-*.tar.xz' ] ; then
+				if [ ${set} != 'kern-GENERIC.tar.xz' ] ; then
+					continue
+				fi
+			fi
 			xz --stdout --decompress ${set} | tar xphf -
 			echo ${set} done
 		done
 	else
-		echo "No files were found, looked for *.tar.xz and *.tgz files" 2>&1
+		echo "No files were found, looked for *.tar.xz and *.tgz" 2>&1
 		exit 2
 	fi
 
