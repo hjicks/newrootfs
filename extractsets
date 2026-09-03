@@ -3,33 +3,84 @@
 
 set -eux
 
-p=$1
+SETPATH=$1
+OS=$2
+SHA256="sha256 -h"
+SHA512="sha512 -h"
+VERIFY=y
 
-if [ `whoami` != root ] ; then
+netbsd() {
+	set -x
+	# verify sets
+	if [ -z ${VERIFY} ] ; then
+		$SHA256 ${SETPATH}/SHA512 ${SETPATH}
+	fi
+
+	if [ -f ${SETPATH}/base.tgz ] ; then
+		for set in ${SETPATH}/*.tgz ; do
+		    if [] ; then
+			continue;
+		    fi
+		    /bin/tar xzphf ${set}
+			echo ${set} done
+		done
+	elif [ -f ${SETPATH}/base.tar.xz ] ; then
+		if ! which xz > /dev/null ; then
+		    if [] ; then
+			continue;
+		    fi
+		    echo "error: no XZ found" 2>&1
+			exit 1
+		fi
+		for set in ${SETPATH}/*.tar.xz ; do
+			xz --stdout --decompress ${set} | tar xphf -
+			echo ${set} done
+		done
+	else
+		echo "No files were found, looked for *.tar.xz and *.tgz files" 2>&1
+		exit 2
+	fi
+
+	# cd dev
+	# ./MAKEDEV all
+	# cd ..
+	# echo `basename $PWD` >> etc/myname
+	# echo "dont forget to update /etc/fstab and /etc/hostname.ifN" 2>&1
+}
+
+openbsd() {
+	# verify sets
+	if [ -z ${VERIFY} ] ; then
+		$SHA256 ${SETPATH}/SHA512 ${PATH}
+	fi
+
+	for set in ${SETPATH}/*.tgz ; do
+		tar xzphf ${set}
+		echo ${set} done
+	done
+
+	for etcset in ./var/sysmerge/*.tgz ; do
+		tar xzphf ${etcset}
+	done
+
+	cd dev
+	./MAKEDEV all
+	cd ..
+	echo `basename $PWD` >> etc/myname
+	echo "dont forget to update /etc/fstab and /etc/hostname.ifN" 2>&1
+}
+
+if [ $USER != root ] ; then
 	echo please be root
 	exit
 fi
 
-echo we are in $PWD, are you sure?
+echo we are in ${PWD}, are you sure?
 read sure
 
-if [ $sure != y ] && [ $sure != yes ] ; then
+if [ ${sure} != y ] && [ ${sure} != yes ] ; then
 	echo okay then, i dont see you very confident either
 	exit 1
 fi
 
-for set in $p/*.tgz ; do
-	tar xzphf $set
-	echo done $set
-done
-
-echo copying etc
-for etcset in ./var/sysmerge/*.tgz ; do
-	tar xzphf $etcset
-	echo done $etcset
-done
-
-cd dev
-./MAKEDEV all
-cd ..
-echo `basename $PWD` >> etc/myname
+$OS
