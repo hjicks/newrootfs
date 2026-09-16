@@ -1,0 +1,26 @@
+newrootfs
+=========
+
+A set of programs to download, extract and maintain rootfs of various
+operating systems. usual use cases include chroot trees or diskless
+environments.
+
+currently there are two programs, both of which support NetBSD and OpenBSD:
+
+getsets - downloads all file sets for a given release
+extractsets - verify checksums and construct a skeleton rootfs from a
+set downloaded with getsets
+
+requirements
+------------
+sha512sum/sha256sum if you want to verify sets, bourne shell and xz (for 64bit NetBSD sets).
+
+Supported NetBSD archs: aarch64, amd64 and earmv6hf and earmv7hf.
+Supported OpenBSD archs: amd64, arm64 and armv7.
+
+the program have primarly been tested on OpenBSD, but special care has been
+given to make sure it is not dependent on OpenBSD.
+
+see also
+--------
+https://github.com/cheusov/sets2rootfs
